@@ -1,0 +1,14 @@
+[project]
+name = "ogtool-scraper"
+version = "0.1.0"
+description = "Modular scraper to import technical content into Aline's knowledgebase"
+requires-python = ">=3.9"
+
+dependencies = [
+    "beautifulsoup4",
+    "readability-lxml",
+    "markdownify",
+    "PyMuPDF",
+    "aiohttp>=3.12.13",
+    "playwright>=1.52.0",
+]
