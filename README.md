@@ -86,6 +86,16 @@ for item in knowledgebase_payload.items:
     * **content**: Markdown or plain text
     * content_type**: **"blog"** or **"book"**
     * **source_url**: Original URL
+  
+### **Chunking text from books**
+* The code splits the book content into multiple chunks, with each chunk corresponding to a **chapter**.
+* Each chapter is saved as a separate Markdown file for better organization and readability.
+* The initial pages before the first chapter (such as the foreword or introduction) are saved as a separate KnowledgeBaseItem under the title `BookIntroMetaData`.
+* This structure ensures both the introductory material and each chapter are easy to access and consistently formatted.
+
+### **Markdown Output Demonstration**
+
+To help you visualize the extracted content, the script automatically writes the first 20 `KnowledgebaseItem` objects into individual Markdown files. These files are saved in the `knowledgebase/markdown/` directory when you run the code. This provides a clear example of how the normalized Markdown output will appear, which is especially useful since JSON alone cannot convey Markdown formatting.
 
 ### **What Sites Are Supported?**
 
