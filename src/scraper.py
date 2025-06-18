@@ -3,6 +3,7 @@ from readability import Document
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
 
+from src.book_parser import extract_chapters
 from src.knowledgebase_payload import KnowledgebaseItem, KnowledgebasePayload
 from urllib.parse import urljoin, urlparse
 import asyncio
@@ -10,6 +11,7 @@ import aiohttp
 
 from playwright.async_api import async_playwright
 import fitz  # PyMuPDF for PDF extraction
+import re
 
 
 # -------------------------------------------------
@@ -162,9 +164,9 @@ async def extract_blog_and_guide_links_async(start_urls):
 # -------------------------------------------------
 # Synchronous entry point: returns a structured KnowledgebasePayload after extracting and scraping links
 # -------------------------------------------------
-def extract_blog_and_guides(urls) -> KnowledgebasePayload:
+def extract_blog_and_guides(team_id, urls) -> KnowledgebasePayload:
     result = asyncio.run(extract_blog_and_guide_links_async(urls))
-    return asyncio.run(scrape_all_blogs_async(result))
+    return asyncio.run(scrape_all_blogs_async(team_id, result))
 
 
 # -------------------------------------------------
@@ -205,7 +207,7 @@ async def scrape_blog_to_markdown(session, url, semaphore):
 # -------------------------------------------------
 # Orchestrate scraping all found blogs/links and return them as a KnowledgebasePayload
 # -------------------------------------------------
-async def scrape_all_blogs_async(urls, concurrency=8):
+async def scrape_all_blogs_async(team_id, urls, concurrency=8):
     semaphore = asyncio.Semaphore(concurrency)
 
     async with aiohttp.ClientSession() as session:
@@ -217,9 +219,18 @@ async def scrape_all_blogs_async(urls, concurrency=8):
                 tasks.append(scrape_blog_to_markdown(session, url, semaphore))
         results = await asyncio.gather(*tasks)
 
+    # Flatten results: each item can be a KnowledgebaseItem or a list of KnowledgebaseItem
+    flat_items = []
+    for item in results:
+        if item is None:
+            continue
+        if isinstance(item, list):
+            flat_items.extend([i for i in item if i is not None])
+        else:
+            flat_items.append(item)
     return KnowledgebasePayload(
-        team_id="aline123",
-        items=[item for item in results if item is not None],
+        team_id=team_id,
+        items=flat_items,
     )
 
 
@@ -233,13 +244,8 @@ async def extract_text_from_drive_pdf(session, drive_url: str) -> KnowledgebaseI
         pdf_bytes = await response.read()
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    text_pages = [page.get_text() for page in doc]
+    text = "\n".join([page.get_text() for page in doc])
     doc.close()
 
-    title = doc.metadata.get("title") or "PDF Document"
-    return KnowledgebaseItem(
-        title=title.strip(),
-        content="\n\n".join(text_pages).strip(),
-        content_type="book",
-        source_url=drive_url,
-    )
+    kb_items = extract_chapters(text, drive_url)
+    return kb_items
